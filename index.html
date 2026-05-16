@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KeyLocker - Gestion Garagiste & Casiers Connectés</title>
+    <!-- Tailwind CSS pour un design moderne, épuré et responsive -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- Bibliothèques pour la génération de QR Code et PDF (Comptabilité) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Lucide Icons pour des icônes professionnelles -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- BARRE DE NAVIGATION -->
+    <header class="bg-slate-900 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-blue-600 p-2 rounded-lg text-white">
+                    <i data-lucide="wrench" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight">KeyLocker</h1>
+                    <p class="text-xs text-slate-400">Automatisation Garage & Casiers</p>
+                </div>
+            </div>
+            
+            <!-- SÉLECTEUR DE VUE (Simule le routage de l'app) -->
+            <nav class="flex bg-slate-800 p-1 rounded-lg border border-slate-700">
+                <button onclick="switchView('garage-panel')" id="btn-garage-panel" class="nav-btn px-4 py-2 rounded-md text-sm font-medium transition-all bg-blue-600 text-white flex items-center gap-2">
+                    <i data-lucide="shield-check" class="w-4 h-4"></i> Espace Garage
+                </button>
+                <button onclick="switchView('client-panel')" id="btn-client-panel" class="nav-btn px-4 py-2 rounded-md text-sm font-medium transition-all text-slate-300 hover:text-white flex items-center gap-2">
+                    <i data-lucide="user" class="w-4 h-4"></i> Espace Client (Simulé)
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-8">
+        
+        <!-- ======================================================== -->
+        <!--                    ESPACE GARAGISTE                      -->
+        <!-- ======================================================== -->
+        <section id="garage-panel" class="tab-content active space-y-8">
+            
+            <!-- STATISTIQUES COMPTABILITÉ FLASH -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-white p-6 rounded-xl shadow-xs border border-gray-100 flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500 font-medium">Chiffre d'Affaires Encaissé</p>
+                        <h3 id="stats-ca" class="text-2xl font-bold text-slate-900 mt-1">0.00 €</h3>
+                    </div>
+                    <div class="bg-emerald-100 p-3 rounded-lg text-emerald-600"><i data-lucide="trending-up"></i></div>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-xs border border-gray-100 flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500 font-medium">Factures en Attente</p>
+                        <h3 id="stats-pending" class="text-2xl font-bold text-slate-900 mt-1">0.00 €</h3>
+                    </div>
+                    <div class="bg-amber-100 p-3 rounded-lg text-amber-600"><i data-lucide="clock"></i></div>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-xs border border-gray-100 flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500 font-medium">Casiers Actuellement Occupés</p>
+                        <h3 id="stats-lockers" class="text-2xl font-bold text-slate-900 mt-1">0 / 10</h3>
+                    </div>
+                    <div class="bg-blue-100 p-3 rounded-lg text-blue-600"><i data-lucide="key-round"></i></div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- FORMULAIRE DE CRÉATION DE PRESTATION -->
+                <div class="bg-white p-6 rounded-xl shadow-xs border border-gray-200 lg:col-span-1 h-fit">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                        <i data-lucide="file-plus" class="text-blue-600"></i> Nouvelle Prestation
+                    </h2>
+                    <form id="prestation-form" onsubmit="createPrestation(event)" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1">Nom du Client</label>
+                            <input type="text" id="client-name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Jean Dupont">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1">Immatriculation</label>
+                            <input type="text" id="client-immat" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="AA-123-BB">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1">Description des Travaux</label>
+                            <textarea id="job-desc" required rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Révision complète, vidange, changement filtre..."></textarea>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1">Montant TTC (€)</label>
+                                <input type="number" id="job-amount" required step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="350.00">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1">Attribuer Casier</label>
+                                <select id="locker-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <!-- Généré dynamiquement -->
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-xs">
+                            <i data-lucide="send" class="w-4 h-4"></i> Générer l'accès client
+                        </button>
+                    </form>
+                </div>
+
+                <!-- TABLEAU DE BORD & COMPTABILITÉ -->
+                <div class="bg-white p-6 rounded-xl shadow-xs border border-gray-200 lg:col-span-2">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                            <i data-lucide="layers" class="text-blue-600"></i> Suivi des Prestations & Facturation
+                        </h2>
+                        <button onclick="exportCompta()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-1.5 px-3 rounded-lg border border-slate-200 transition-colors flex items-center gap-1 cursor-pointer">
+                            <i data-lucide="download" class="w-3.5 h-3.5"></i> Export Journal
+                        </button>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="border-b border-gray-200 bg-gray-50 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                                    <th class="p-3">Réf / Client</th>
+                                    <th class="p-3">Véhicule</th>
+                                    <th class="p-3">Montant</th>
+                                    <th class="p-3">Statut / Casier</th>
+                                    <th class="p-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="prestations-table-body" class="divide-y divide-gray-100 text-sm">
+                                <!-- Données insérées en JS -->
+                            </tbody>
+                        </table>
+                        <div id="empty-state" class="text-center py-12 text-gray-400 hidden">
+                            <i data-lucide="folder-open" class="w-12 h-12 mx-auto mb-2 stroke-1"></i>
+                            <p>Aucune prestation en cours pour le moment.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ======================================================== -->
+        <!--                    ESPACE PARTICULIER                    -->
+        <!-- ======================================================== -->
+        <section id="client-panel" class="tab-content space-y-6 max-w-xl mx-auto">
+            <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200">
+                <div class="text-center border-b border-gray-100 pb-4 mb-6">
+                    <span class="bg-blue-50 text-blue-700 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">Portail Sécurisé Client</span>
+                    <h2 class="text-xl font-bold text-gray-900 mt-2">Récupération de votre véhicule</h2>
+                    <p class="text-xs text-gray-500 mt-1">Payez votre facture en ligne pour générer le code d'accès à vos clés.</p>
+                </div>
+
+                <!-- Recherche de dossier -->
+                <div id="client-search-box" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1">Entrez votre numéro d'immatriculation :</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="search-immat" class="flex-grow px-3 py-2 border border-gray-300 rounded-lg uppercase focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="AA-123-BB">
+                            <button onclick="searchClientInvoice()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-1 cursor-pointer">
+                                <i data-lucide="search" class="w-4 h-4"></i> Valider
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Détails Facture & Simulation Paiement -->
+                <div id="client-invoice-details" class="hidden space-y-6">
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-100 text-sm space-y-2">
+                        <div class="flex justify-between font-semibold"><span class="text-gray-500">Client :</span> <span id="c-name"></span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">Véhicule :</span> <span id="c-immat" class="font-mono"></span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">Détails :</span> <span id="c-desc" class="text-right max-w-[200px] truncate"></span></div>
+                        <div class="flex justify-between border-t border-slate-200 pt-2 text-base font-bold text-slate-900">
+                            <span>Total à régler :</span> <span id="c-amount"></span>
+                        </div>
+                    </div>
+
+                    <!-- Bouton de paiement fictif Stripe/Paypal -->
+                    <div id="payment-zone">
+                        <button onclick="simulatePayment()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-4 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer">
+                            <i data-lucide="credit-card" class="w-5 h-5"></i> Procéder au paiement sécurisé
+                        </button>
+                    </div>
+
+                    <!-- Zone de délivrance du Code / QR Code -->
+                    <div id="success-locker-zone" class="hidden text-center bg-emerald-50 border border-emerald-200 p-6 rounded-xl space-y-4">
+                        <div class="inline-flex bg-emerald-100 p-2 rounded-full text-emerald-600">
+                            <i data-lucide="check-circle-2" class="w-8 h-8"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-emerald-900">Paiement Validé !</h3>
+                            <p class="text-xs text-emerald-700 mt-0.5">Votre facture acquittée a été transmise à votre garage.</p>
+                        </div>
+                        
+                        <div class="bg-white p-4 rounded-lg border border-emerald-100 shadow-xs inline-block mx-auto">
+                            <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Code Manuel de votre Casier <span id="lbl-locker-num" class="text-blue-600 font-bold"></span></p>
+                            <div id="display-locker-code" class="text-3xl font-mono font-bold tracking-widest text-slate-900 bg-slate-100 px-4 py-2 rounded border border-slate-200">----</div>
+                        </div>
+
+                        <div class="flex flex-col items-center justify-center">
+                            <p class="text-xs text-gray-500 mb-2">Scannez ce QR Code devant la borne du casier :</p>
+                            <div id="qrcode" class="bg-white p-2 rounded border border-gray-200"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="client-error" class="hidden mt-4 p-3 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm text-center">
+                    Aucun dossier en attente trouvé pour cette immatriculation.
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-slate-900 text-slate-500 text-xs py-4 text-center border-t border-slate-800">
+        KeyLocker CRM & IoT System &copy; 2026 - Solution d'optimisation du temps de travail des ateliers.
+    </footer>
+
+    <!-- LOGIQUE DE L'APPLICATION (JAVASCRIPT) -->
+    <script>
+        // Base de données locale simulée (LocalStorage pour persistance au rafraîchissement)
+        let DB = JSON.parse(localStorage.getItem('keylocker_db')) || {
+            prestations: [],
+            lockers: Array.from({length: 10}, (_, i) => ({ id: i + 1, occupied: false, code: '' }))
+        };
+
+        // Sauvegarde automatique
+        const saveDB = () => localStorage.setItem('keylocker_db', JSON.stringify(DB));
+
+        // Initialisation de l'application
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            populateLockerSelect();
+            renderGarageTable();
+            updateStats();
+        });
+
+        // Navigation fluide entre les onglets
+        function switchView(viewId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(el => el.className = "nav-btn px-4 py-2 rounded-md text-sm font-medium transition-all text-slate-300 hover:text-white flex items-center gap-2");
+            
+            document.getElementById(viewId).classList.add('active');
+            const activeBtn = document.getElementById(`btn-${viewId}`);
+            activeBtn.className = "nav-btn px-4 py-2 rounded-md text-sm font-medium transition-all bg-blue-600 text-white flex items-center gap-2";
+        }
+
+        // Remplir le sélecteur de casiers disponibles
+        function populateLockerSelect() {
+            const select = document.getElementById('locker-select');
+            select.innerHTML = '';
+            const availables = DB.lockers.filter(l => !l.occupied);
+            
+            if(availables.length === 0) {
+                select.innerHTML = `<option value="">Plus de casier dispo</option>`;
+                return;
+            }
+            availables.forEach(l => {
+                select.innerHTML += `<option value="${l.id}">Casier N°${l.id}</option>`;
+            });
+        }
+
+        // Mettre à jour les indicateurs du tableau de bord
+        function updateStats() {
+            const ca = DB.prestations.filter(p => p.status === 'Payé').reduce((acc, p) => acc + p.amount, 0);
+            const pending = DB.prestations.filter(p => p.status === 'En attente').reduce((acc, p) => acc + p.amount, 0);
+            const occupiedLockers = DB.lockers.filter(l => l.occupied).length;
+
+            document.getElementById('stats-ca').innerText = `${ca.toFixed(2)} €`;
+            document.getElementById('stats-pending').innerText = `${pending.toFixed(2)} €`;
+            document.getElementById('stats-lockers').innerText = `${occupiedLockers} / ${DB.lockers.length}`;
+        }
+
+        // Générer un code PIN aléatoire pour le casier
+        const generateSecretPin = () => Math.floor(1000 + Math.random() * 9000).toString();
+
+        // Action : Création d'une prestation par le garagiste
+        function createPrestation(e) {
+            e.preventDefault();
+            
+            const clientName = document.getElementById('client-name').value;
+            const immat = document.getElementById('client-immat').value.toUpperCase().trim();
+            const desc = document.getElementById('job-desc').value;
+            const amount = parseFloat(document.getElementById('job-amount').value);
+            const lockerId = parseInt(document.getElementById('locker-select').value);
+
+            if(!lockerId) {
+                alert("Veuillez sélectionner ou libérer un casier.");
+                return;
+            }
+
+            const pinCode = generateSecretPin();
+
+            // Structure de la donnée
+            const newPrestation = {
+                id: 'FACT-' + Date.now().toString().slice(-6),
+                clientName,
+                immat,
+                desc,
+                amount,
+                lockerId,
+                pinCode,
+                status: 'En attente', // En attente / Payé
+                date: new Date().toLocaleDateString('fr-FR')
+            };
+
+            // Mettre à jour le casier
+            const lockerIdx = DB.lockers.findIndex(l => l.id === lockerId);
+            DB.lockers[lockerIdx].occupied = true;
+            DB.lockers[lockerIdx].code = pinCode;
+
+            DB.prestations.unshift(newPrestation);
+            saveDB();
+            
+            // Reset formulaire et UI
+            document.getElementById('prestation-form').reset();
+            populateLockerSelect();
+            renderGarageTable();
+            updateStats();
+            
+            alert(`Prestation créée avec succès. Lien de paiement simulé prêt pour l'immatriculation : ${immat}`);
+        }
+
+        // Affichage du tableau côté garage
+        function renderGarageTable() {
+            const tbody = document.getElementById('prestations-table-body');
+            const emptyState = document.getElementById('empty-state');
+            tbody.innerHTML = '';
+
+            if (DB.prestations.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            DB.prestations.forEach(p => {
+                const statusClass = p.status === 'Payé' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800';
+                const row = `
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="p-3">
+                            <div class="font-semibold text-gray-900">${p.clientName}</div>
+                            <div class="text-xs text-gray-400">${p.id} - ${p.date}</div>
+                        </td>
+                        <td class="p-3 font-mono text-xs bg-gray-100 rounded px-2 py-1 inline-block mt-2">${p.immat}</td>
+                        <td class="p-3 font-medium text-gray-900">${p.amount.toFixed(2)} €</td>
+                        <td class="p-3">
+                            <span class="px-2.5 py-1 text-xs rounded-full font-medium ${statusClass}">${p.status}</span>
+                            <div class="text-xs text-gray-500 mt-1"><i class="inline w-3 h-3" data-lucide="box"></i> Casier ${p.lockerId} (Code: ${p.pinCode})</div>
+                        </td>
+                        <td class="p-3 text-right space-x-1">
+                            <button onclick="downloadPDF('${p.id}')" class="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors cursor-pointer" title="Télécharger Facture Numérique">
+                                <i data-lucide="file-text" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="deletePrestation('${p.id}')" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer" title="Supprimer">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+            lucide.createIcons();
+        }
+
+        // Suppression d'un dossier et libération des casiers
+        function deletePrestation(id) {
+            if(!confirm("Supprimer ce dossier ? Cela libérera également le casier associé.")) return;
+            const target = DB.prestations.find(p => p.id === id);
+            if(target) {
+                const lockerIdx = DB.lockers.findIndex(l => l.id === target.lockerId);
+                if(lockerIdx !== -1) {
+                    DB.lockers[lockerIdx].occupied = false;
+                    DB.lockers[lockerIdx].code = '';
+                }
+                DB.prestations = DB.prestations.filter(p => p.id !== id);
+                saveDB();
+                renderGarageTable();
+                populateLockerSelect();
+                updateStats();
+            }
+        }
+
+        // Génération automatique d'une Facture PDF (Liaison Prestation-Compta simplifiée)
+        function downloadPDF(id) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const p = DB.prestations.find(item => item.id === id);
+
+            if(!p) return;
+
+            // Structure Visuelle de la Facture
+            doc.setFont("helvetica", "bold");
+            doc.text("FACTURE NUMÉRIQUE - EXPERT GARAGE", 14, 20);
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            doc.text(`Référence : ${p.id}`, 14, 28);
+            doc.text(`Date d'émission : ${p.date}`, 14, 34);
+            
+            doc.line(14, 40, 196, 40);
+
+            doc.text(`Facturé à : ${p.clientName}`, 14, 50);
+            doc.text(`Véhicule (Immatriculation) : ${p.immat}`, 14, 56);
+
+            doc.setFillColor(245, 247, 250);
+            doc.rect(14, 65, 182, 30, "F");
+            
+            doc.setFont("helvetica", "bold");
+            doc.text("Description des interventions", 18, 72);
+            doc.setFont("helvetica", "normal");
+            doc.text(p.desc, 18, 82, { maxWidth: 170 });
+
+            doc.setFontSize(12);
+            doc.setFont("helvetica", "bold");
+            doc.text(`TOTAL NET À PAYER : ${p.amount.toFixed(2)} EUR`, 14, 110);
+
+            doc.setFontSize(9);
+            doc.setFont("helvetica", "italic");
+            doc.text(`Statut du règlement : ${p.status.toUpperCase()}`, 14, 120);
+            doc.text(`Clés associées au Casier Connecté N°${p.lockerId}`, 14, 125);
+
+            doc.save(`Facture_${p.id}.pdf`);
+        }
+
+        // Export Comptable au format CSV pour tableurs
+        function exportCompta() {
+            if(DB.prestations.length === 0) {
+                alert("Aucune donnée à exporter.");
+                return;
+            }
+            let csv = "ID Facture;Date;Client;Immatriculation;Montant TTC;Statut\n";
+            DB.prestations.forEach(p => {
+                csv += `${p.id};${p.date};${p.clientName};${p.immat};${p.amount};${p.status}\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute("download", `Journal_Compta_Garage_${new Date().getFullYear()}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // ========================================================
+        //           LOGIQUE SÉCURISÉE PORTAIL CLIENT
+        // ========================================================
+        let currentActiveClientJob = null;
+
+        function searchClientInvoice() {
+            const searchImmat = document.getElementById('search-immat').value.toUpperCase().trim();
+            const job = DB.prestations.find(p => p.immat === searchImmat);
+
+            const detailsBox = document.getElementById('client-invoice-details');
+            const errorBox = document.getElementById('client-error');
+
+            if (job) {
+                currentActiveClientJob = job;
+                errorBox.classList.add('hidden');
+                detailsBox.classList.remove('hidden');
+
+                document.getElementById('c-name').innerText = job.clientName;
+                document.getElementById('c-immat').innerText = job.immat;
+                document.getElementById('c-desc').innerText = job.desc;
+                document.getElementById('c-amount').innerText = `${job.amount.toFixed(2)} €`;
+
+                const paymentZone = document.getElementById('payment-zone');
+                const successZone = document.getElementById('success-locker-zone');
+
+                if (job.status === 'Payé') {
+                    paymentZone.classList.add('hidden');
+                    successZone.classList.remove('hidden');
+                    revealLockerSecrets(job);
+                } else {
+                    paymentZone.classList.remove('hidden');
+                    successZone.classList.add('hidden');
+                }
+            } else {
+                detailsBox.classList.add('hidden');
+                errorBox.classList.remove('hidden');
+                currentActiveClientJob = null;
+            }
+        }
+
+        // Simulation de la passerelle de paiement (ex: Webhook Stripe)
+        function simulatePayment() {
+            if(!currentActiveClientJob) return;
+
+            // Mutation de l'état de la facture
+            const jobIdx = DB.prestations.findIndex(p => p.id === currentActiveClientJob.id);
+            DB.prestations[jobIdx].status = 'Payé';
+            saveDB();
+
+            // Rafraîchissement UI
+            document.getElementById('payment-zone').classList.add('hidden');
+            document.getElementById('success-locker-zone').classList.remove('hidden');
+            
+            revealLockerSecrets(currentActiveClientJob);
+            renderGarageTable();
+            updateStats();
+        }
+
+        // Délivrance et génération du QR Code IoT
+        function revealLockerSecrets(job) {
+            document.getElementById('lbl-locker-num').innerText = job.lockerId;
+            document.getElementById('display-locker-code').innerText = job.pinCode;
+
+            // Nettoyage de l'ancien QR code s'il existe
+            document.getElementById("qrcode").innerHTML = "";
+            
+            // Objet envoyé à la borne physique du casier lors du scan
+            const payloadIoT = JSON.stringify({
+                action: "UNLOCK_LOCKER",
+                lockerId: job.lockerId,
+                authCode: job.pinCode,
+                timestamp: Date.now()
+            });
+
+            // Génération graphique du QR Code
+            new QRCode(document.getElementById("qrcode"), {
+                text: payloadIoT,
+                width: 128,
+                height: 128,
+                colorDark : "#0f172a",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+        }
+    </script>
+</body>
+</html>
